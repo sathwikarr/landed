@@ -17,7 +17,9 @@
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.3.0",
     "eventsource-parser": "^1.1.2",
-    "swr": "^2.2.5"
+    "swr": "^2.2.5",
+    "@supabase/supabase-js": "^2.43.4",
+    "@supabase/ssr": "^0.3.0"
   },
   "devDependencies": {
     "typescript": "^5",

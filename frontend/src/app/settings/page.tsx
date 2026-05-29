@@ -1,9 +1,34 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export default function Settings() {
+  const [fields, setFields] = useState<Record<string, string>>({})
+  const [userId, setUserId] = useState('')
   const [saved, setSaved] = useState(false)
+  const FIELD_LABELS = ['phone','linkedin_url','github_url','website','location','work_authorization','visa_sponsorship','salary_expectation','years_of_experience']
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return
+      setUserId(data.user.id)
+      const res = await fetch(`${API}/api/fields/${data.user.id}`)
+      const json = await res.json()
+      setFields(json.fields || {})
+    })
+  }, [])
+
+  const saveAll = async () => {
+    for (const [k, v] of Object.entries(fields)) {
+      await fetch(`${API}/api/fields/save`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({user_id: userId, field_name: k, field_value: v}) })
+    }
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
@@ -17,25 +42,17 @@ export default function Settings() {
       </nav>
       <div className="max-w-2xl mx-auto px-6 py-8">
         <h1 className="text-2xl font-bold mb-6">Settings</h1>
-        <div className="space-y-4">
-          <div className="card p-5">
-            <h3 className="font-semibold mb-3">Saved form fields</h3>
-            <p className="text-sm text-gray-500 mb-3">Answers to fields the agent discovered and saved for future applications.</p>
-            {[{k:'Phone',v:'+1 555 000 0000'},{k:'Work authorization',v:'US Citizen'},{k:'Visa sponsorship',v:'No'},{k:'LinkedIn URL',v:'linkedin.com/in/sathwik'},{k:'GitHub URL',v:'github.com/sathwikarr'}].map(f => (
-              <div key={f.k} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                <span className="text-sm text-gray-500 w-40">{f.k}</span>
-                <input className="input flex-1 text-sm" defaultValue={f.v} />
-              </div>
-            ))}
-          </div>
-          <div className="card p-5">
-            <h3 className="font-semibold mb-3">Notification email</h3>
-            <input className="input" defaultValue="sathwik@icloud.com" />
-          </div>
-          <button className="btn-primary" onClick={() => setSaved(true)}>
-            {saved ? '✅ Saved' : 'Save settings'}
-          </button>
+        <div className="card p-5 mb-4">
+          <h3 className="font-semibold mb-3">Saved form fields</h3>
+          <p className="text-sm text-gray-500 mb-3">Pre-filled answers for every job application form.</p>
+          {FIELD_LABELS.map(k => (
+            <div key={k} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+              <span className="text-sm text-gray-500 w-44 capitalize">{k.replace(/_/g,' ')}</span>
+              <input className="input flex-1 text-sm" value={fields[k]||''} onChange={e => setFields(f => ({...f, [k]: e.target.value}))} placeholder={`Enter ${k.replace(/_/g,' ')}`} />
+            </div>
+          ))}
         </div>
+        <button className="btn-primary" onClick={saveAll}>{saved ? '✅ Saved!' : 'Save settings'}</button>
       </div>
     </div>
   )

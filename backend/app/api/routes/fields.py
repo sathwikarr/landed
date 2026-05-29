@@ -1,19 +1,24 @@
-"""Saved form fields — store answers to novel application fields so we never ask twice."""
+"""Saved form fields — persisted in profiles.saved_fields JSONB column."""
 from fastapi import APIRouter
 from app.models.schemas import SaveFieldRequest
+from app.services.supabase_client import get_supabase
 
 router = APIRouter(prefix="/fields", tags=["fields"])
-_fields: dict = {}  # user_id → {field_name: value}
 
 
 @router.get("/{user_id}")
 async def get_fields(user_id: str):
-    return {"fields": _fields.get(user_id, {})}
+    sb = get_supabase()
+    res = sb.table("profiles").select("saved_fields").eq("id", user_id).single().execute()
+    return {"fields": res.data.get("saved_fields", {}) if res.data else {}}
 
 
 @router.post("/save")
 async def save_field(req: SaveFieldRequest):
-    if req.user_id not in _fields:
-        _fields[req.user_id] = {}
-    _fields[req.user_id][req.field_name] = req.field_value
+    sb = get_supabase()
+    # Merge new field into existing saved_fields
+    current = sb.table("profiles").select("saved_fields").eq("id", req.user_id).single().execute()
+    fields = current.data.get("saved_fields", {}) if current.data else {}
+    fields[req.field_name] = req.field_value
+    sb.table("profiles").update({"saved_fields": fields}).eq("id", req.user_id).execute()
     return {"ok": True}
